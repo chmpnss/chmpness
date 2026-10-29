@@ -870,7 +870,14 @@ public class MainActivity extends Activity {
     };
 
     // Kisisel ayarlar uygulamanin icinde degil, yalnizca kutuda (SharedPreferences) saklanir.
-    String cfg(String k, String def) { return sp.getString("cfg_" + k, def); }
+    String cfg(String k, String def) {
+        String v = sp.getString("cfg_" + k, def);
+        if (v != null && v.startsWith("b64:")) {
+            try { v = new String(android.util.Base64.decode(v.substring(4), android.util.Base64.DEFAULT), "UTF-8"); }
+            catch (Exception ignored) { }
+        }
+        return v;
+    }
     double lat() { return Double.parseDouble(cfg("lat", "41.0082")); }
     double lon() { return Double.parseDouble(cfg("lon", "28.9784")); }
     String place() { return cfg("place", ""); }
