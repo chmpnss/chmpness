@@ -1,0 +1,5 @@
+# Xiaomi Mi Box / Mi TV (PatchWall) reklam ve analiz servisleri
+com.mitv.tvhome.atv                         # PatchWall ana ekranı (reklamlı)
+com.xiaomi.mitv.advertise                   # Reklam servisi
+com.miui.analytics                          # Analiz/telemetri
+com.xiaomi.mitv.upgrade                     # Zorunlu güncelleme bildirimleri

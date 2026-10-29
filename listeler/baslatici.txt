@@ -1,0 +1,5 @@
+# Stok başlatıcılar (sponsorlu satırların asıl kaynağı).
+# Bunlar YALNIZCA yeni bir başlatıcı kurulduktan sonra ve onayınızla kapatılır.
+com.google.android.apps.tv.launcherx        # Google TV ana ekranı
+com.google.android.tvlauncher               # Android TV ana ekranı
+com.google.android.leanbacklauncher         # Eski Android TV ana ekranı

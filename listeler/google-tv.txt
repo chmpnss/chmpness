@@ -1,0 +1,6 @@
+# Google TV / Android TV: öneri, sponsorlu içerik ve reklam servisleri
+# Biçim: paket_adı  # açıklama
+com.google.android.tvrecommendations        # Ana ekrandaki "önerilen" satırları
+com.google.android.leanbacklauncher.recommendations  # Eski Android TV öneri servisi
+com.google.android.partnersetup             # Üretici/partner içerik tanıtımları
+com.google.android.feedback                 # Geri bildirim/telemetri
