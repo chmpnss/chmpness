@@ -21,12 +21,14 @@ Bilgisayardan **ADB** ile çalışır; TV'ye root gerekmez.
    Windows'ta betiği **Git Bash** ile çalıştırın.
 2. **TV'de geliştirici modunu açın:** Ayarlar › Sistem › Hakkında › *Android TV OS derlemesi*ne 7 kez basın.
 3. **USB/ağ hata ayıklamayı açın:** Ayarlar › Sistem › Geliştirici seçenekleri › *USB hata ayıklama* (ve varsa *Ağ üzerinden hata ayıklama*).
-4. TV'nin IP adresini bulun: Ayarlar › Ağ ve İnternet › bağlı ağ.
+4. TV'yi ağda otomatik bulun: `./tv-reklamsiz.sh bul` — aynı Wi‑Fi'daki tüm cihazları tarar,
+   Android TV / Google TV'leri adlarıyla listeler ve tek TV varsa doğrudan bağlanır.
+   (Elle: Ayarlar › Ağ ve İnternet › bağlı ağ'da IP görünür.)
 
 ## Kullanım
 
 ```bash
-./tv-reklamsiz.sh baglan 192.168.1.50   # TV'de çıkan izni onaylayın
+./tv-reklamsiz.sh bul                    # TV'yi bul ve bağlan (TV'de çıkan izni onaylayın)
 ./tv-reklamsiz.sh hepsi                  # her şeyi uygula
 ```
 

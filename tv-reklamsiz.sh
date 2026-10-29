@@ -80,13 +80,92 @@ paket_kapat() {
 cmd_baglan() {
   adb_var_mi
   local ip="${1:-}"
-  [[ -n "$ip" ]] || read -r -p "TV'nin IP adresi (Ayarlar › Ağ): " ip
+  [[ -n "$ip" ]] || { cmd_bul; return; }
   [[ "$ip" == *:* ]] || ip="$ip:5555"
   bilgi "$ip adresine bağlanılıyor… TV'de çıkan izin penceresini onaylayın."
   "$ADB" connect "$ip"
   "$ADB" wait-for-device
   tamam "Bağlandı: $(kabuk getprop ro.product.manufacturer) $(kabuk getprop ro.product.model)" \
         "(Android $(kabuk getprop ro.build.version.release))"
+}
+
+# Bilgisayarın yerel ağının ilk üç hanesini bulur (ör. 192.168.1).
+yerel_ag() {
+  local ip=""
+  if command -v ip >/dev/null 2>&1; then
+    ip="$(ip -4 -o addr show scope global 2>/dev/null | awk '{sub(/\/.*/, "", $4); print $4; exit}')"
+  fi
+  if [[ -z "$ip" ]] && command -v ipconfig >/dev/null 2>&1; then
+    ip="$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || true)"   # macOS
+    [[ -n "$ip" ]] || ip="$(ipconfig 2>/dev/null | grep -aE 'IPv4' | grep -oE '([0-9]+\.){3}[0-9]+' | head -n1 || true)"  # Windows
+  fi
+  [[ -n "$ip" ]] && echo "${ip%.*}"
+}
+
+# 1 saniyelik zaman aşımıyla TCP portu açık mı?
+port_acik() {
+  bash -c "exec 3<>/dev/tcp/$1/$2" 2>/dev/null &
+  local p=$!
+  ( sleep 1; kill "$p" 2>/dev/null ) &
+  local k=$!
+  wait "$p" 2>/dev/null; local r=$?
+  kill "$k" 2>/dev/null || true
+  return "$r"
+}
+
+# Google Cast cihazının adını okur (yalnızca destekleyen modellerde).
+cast_adi() {
+  command -v curl >/dev/null 2>&1 || return 0
+  curl -s -m 2 "http://$1:8008/setup/eureka_info?params=name" 2>/dev/null \
+    | grep -o '"name":"[^"]*"' | head -n1 | cut -d'"' -f4 || true
+}
+
+cmd_bul() {
+  adb_var_mi
+  local ag="${1:-$(yerel_ag || true)}"
+  ag="${ag%.}"
+  [[ -n "$ag" ]] || read -r -p "Ağınızın ilk üç hanesi (ör. 192.168.1): " ag
+  baslik "$ag.0/24 ağında TV aranıyor"
+
+  # Android 11+ "Kablosuz hata ayıklama" cihazları mDNS ile kendini duyurur.
+  "$ADB" mdns services 2>/dev/null | grep -E '_adb' | sed 's/^/  mdns: /' || true
+
+  local gecici; gecici="$(mktemp -d)"
+  local i
+  for i in $(seq 1 254); do
+    { port_acik "$ag.$i" 5555 && echo "$ag.$i" >>"$gecici/adb"; } &
+    { port_acik "$ag.$i" 8009 && echo "$ag.$i" >>"$gecici/cast"; } &
+    (( i % 64 == 0 )) && wait
+  done
+  wait
+
+  local adbler castlar
+  adbler="$(sort -t. -k4 -n "$gecici/adb" 2>/dev/null || true)"
+  castlar="$(sort -t. -k4 -n "$gecici/cast" 2>/dev/null || true)"
+  rm -rf "$gecici"
+
+  if [[ -z "$adbler$castlar" ]]; then
+    uyari "TV bulunamadı. TV açık ve aynı Wi‑Fi'da mı? Ağ hata ayıklaması açık mı?"
+    return 1
+  fi
+
+  local ip ad
+  for ip in $(printf '%s\n%s\n' "$adbler" "$castlar" | sort -u -t. -k4 -n); do
+    [[ -n "$ip" ]] || continue
+    ad="$(cast_adi "$ip")"
+    if grep -qx "$ip" <<<"$adbler"; then
+      printf '  %s📺 %-15s%s %s  %sADB açık ✔%s\n' "$B" "$ip" "$N" "${ad:-Android cihaz}" "$Y" "$N"
+    else
+      printf '  %s📺 %-15s%s %s  %sADB kapalı (Geliştirici seçeneklerinden açın)%s\n' "$B" "$ip" "$N" "${ad:-Cast cihazı}" "$S" "$N"
+    fi
+  done
+
+  local sayi; sayi="$(grep -c . <<<"$adbler" || true)"
+  if (( sayi == 1 )) && onay "$adbler adresine bağlanılsın mı?"; then
+    cmd_baglan "$adbler"
+  elif (( sayi > 1 )); then
+    bilgi "Bağlanmak için: $0 baglan <ip>"
+  fi
 }
 
 cmd_tara() {
@@ -216,6 +295,7 @@ yardim() {
 
 ${B}Kullanım:${N} $0 <komut>
 
+  ${M}bul${N} [192.168.1]     Ağdaki TV'leri bul ve bağlan
   ${M}baglan${N} <ip>        TV'ye kablosuz ADB ile bağlan
   ${M}hepsi${N} [apk]        Tümünü uygula (önerilen)
   ${M}reklam${N}             Reklam/öneri servislerini kapat
@@ -236,7 +316,7 @@ menu() {
   while true; do
     cat <<EOF
 
-  ${B}1${N}) TV'ye bağlan          ${B}5${N}) Arayüzü hızlandır
+  ${B}1${N}) TV'yi ağda bul       ${B}5${N}) Arayüzü hızlandır
   ${B}2${N}) ✨ Hepsini uygula     ${B}6${N}) Şüpheli paketleri tara
   ${B}3${N}) Reklamları kapat      ${B}7${N}) Geri al
   ${B}4${N}) Reklamsız DNS         ${B}8${N}) Yeni ana ekran kur
@@ -244,7 +324,7 @@ menu() {
 EOF
     read -r -p "Seçim: " secim
     case "$secim" in
-      1) ( cmd_baglan ) ;;  2) ( cmd_hepsi ) ;;   3) ( cmd_reklam ) ;;
+      1) ( cmd_bul ) ;;  2) ( cmd_hepsi ) ;;   3) ( cmd_reklam ) ;;
       4) ( cmd_dns ) ;;     5) ( cmd_hiz ) ;;     6) ( cmd_tara ) ;;
       7) ( cmd_geri_al ) ;; 8) ( cmd_baslatici ) ;; 0|q) exit 0 ;;
       *) uyari "Geçersiz seçim." ;;
@@ -256,6 +336,7 @@ main() {
   local komut="${1:-}"; shift || true
   case "$komut" in
     "")              menu ;;
+    bul)             cmd_bul "$@" ;;
     baglan)          cmd_baglan "$@" ;;
     hepsi)           cmd_hepsi "$@" ;;
     reklam)          cmd_reklam ;;
