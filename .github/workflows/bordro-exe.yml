@@ -1,0 +1,42 @@
+name: Bordro exe
+
+on:
+  push:
+    paths:
+      - "bordro-programi/**"
+      - ".github/workflows/bordro-exe.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: bordro-programi
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r requirements.txt pyinstaller pytest
+      - run: python -m pytest -q tests
+      - run: python -m PyInstaller --noconfirm --onefile --windowed --name BordroProgrami bordro_app.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BordroProgrami
+          path: bordro-programi/dist/BordroProgrami.exe
+      # Hazır exe'yi ayrı bir dala koyar; indirmek için GitHub'a giriş gerekmez (depo herkese açıksa).
+      - name: Publish to bordro-exe branch
+        shell: bash
+        run: |
+          mkdir ../yayin && cp dist/BordroProgrami.exe ../yayin/
+          cd ../yayin
+          git init -q -b bordro-exe
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add BordroProgrami.exe
+          git commit -q -m "BordroProgrami.exe (${GITHUB_SHA::7})"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" bordro-exe

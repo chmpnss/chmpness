@@ -909,4 +909,17 @@ class ParametreSekmesi(ttk.Frame):
 
 
 def calistir():
-    Uygulama().mainloop()
+    """Açılışta oluşan hatayı hata.log'a yazar ve gösterir; .exe penceresiz olduğu için
+    aksi halde program sessizce kapanırdı."""
+    try:
+        Uygulama().mainloop()
+    except Exception:
+        import traceback
+        yol = os.path.join(veri_klasoru(), "hata.log")
+        with open(yol, "a", encoding="utf-8") as f:
+            f.write(f"\n--- {datetime.now():%Y-%m-%d %H:%M} ---\n{traceback.format_exc()}")
+        kok = tk.Tk()
+        kok.withdraw()
+        messagebox.showerror(UYGULAMA_ADI, f"Program açılamadı.\nAyrıntılar: {yol}\n\n"
+                                           f"{traceback.format_exc(limit=1)}")
+        kok.destroy()
